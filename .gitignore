@@ -1,0 +1,14 @@
+.agents/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
+*.zip
+*.xlsx
+dist/
+gh-login.*
+
+# Private/internal ELS material. Never publish these files.
+API specifikacija Bettina Barty.md
+ELS-WooCommerce-Javen-Opis.md

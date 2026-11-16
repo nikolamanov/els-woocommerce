@@ -3,7 +3,7 @@
  * Plugin Name: ELS for WooCommerce
  * Plugin URI:  https://nikolamanov.com
  * Description: Creates ELS postal shipments from WooCommerce orders through the configurable ELS API.
- * Version:     1.4.1
+ * Version:     1.5.0
  * Author:      Nikola Manov
  * Author URI:  https://nikolamanov.com
  * Text Domain: els-woocommerce
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'ELS_WC_VERSION', '1.4.1' );
+define( 'ELS_WC_VERSION', '1.5.0' );
 define( 'ELS_WC_FILE', __FILE__ );
 define( 'ELS_WC_PATH', plugin_dir_path( __FILE__ ) );
 
@@ -26,6 +26,7 @@ require_once ELS_WC_PATH . 'includes/class-els-wc-api-client.php';
 require_once ELS_WC_PATH . 'includes/class-els-wc-places.php';
 require_once ELS_WC_PATH . 'includes/class-els-wc-order-exporter.php';
 require_once ELS_WC_PATH . 'includes/class-els-wc-customer-tracking.php';
+require_once ELS_WC_PATH . 'includes/class-els-wc-status-sync.php';
 require_once ELS_WC_PATH . 'includes/class-els-wc-admin.php';
 
 register_activation_hook(
@@ -34,6 +35,13 @@ register_activation_hook(
 		if ( false === get_option( ELS_WC_Settings::OPTION_NAME, false ) ) {
 			add_option( ELS_WC_Settings::OPTION_NAME, ELS_WC_Settings::defaults(), '', false );
 		}
+	}
+);
+
+register_deactivation_hook(
+	__FILE__,
+	static function () {
+		wp_clear_scheduled_hook( 'els_wc_sync_statuses' );
 	}
 );
 
@@ -66,6 +74,7 @@ add_action(
 		$exporter = new ELS_WC_Order_Exporter();
 		ELS_WC_Places::init();
 		ELS_WC_Customer_Tracking::init();
+		ELS_WC_Status_Sync::init();
 		new ELS_WC_Admin( $exporter );
 	}
 );

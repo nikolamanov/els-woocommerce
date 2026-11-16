@@ -38,6 +38,11 @@ final class ELS_WC_Settings {
 			'tracking_meta_key'   => '_tracking_number',
 			'tracking_page_base_url' => 'https://track.els.mk/mk/',
 			'customer_tracking_email' => 'yes',
+			'sync_enabled'        => 'yes',
+			'status_map'          => '',
+			'status_shipped'      => '',
+			'status_delivered'    => 'completed',
+			'status_returned'     => 'cancelled',
 			'column_mapping'      => implode(
 				"\n",
 				array(
@@ -116,6 +121,12 @@ final class ELS_WC_Settings {
 		$output['tracking_page_base_url'] = trailingslashit( esc_url_raw( $input['tracking_page_base_url'] ?? 'https://track.els.mk/mk/' ) );
 		$output['customer_tracking_email'] = isset( $input['customer_tracking_email'] ) ? 'yes' : 'no';
 
+		$output['sync_enabled'] = isset( $input['sync_enabled'] ) ? 'yes' : 'no';
+		$output['status_map']   = sanitize_textarea_field( $input['status_map'] ?? '' );
+		foreach ( array( 'shipped', 'delivered', 'returned' ) as $target ) {
+			$output[ 'status_' . $target ] = sanitize_key( preg_replace( '/^wc-/', '', (string) ( $input[ 'status_' . $target ] ?? $defaults[ 'status_' . $target ] ) ) );
+		}
+
 		$delimiter = sanitize_key( $input['delimiter'] ?? 'comma' );
 		$output['delimiter'] = in_array( $delimiter, array( 'tab', 'comma', 'semicolon', 'pipe' ), true ) ? $delimiter : 'comma';
 
@@ -192,6 +203,28 @@ final class ELS_WC_Settings {
 					<?php self::checkbox_row( 'customer_tracking_email', __( 'Customer tracking link', 'els-woocommerce' ), $s['customer_tracking_email'], __( 'Include the tracking link in the Completed order email and My Account order details.', 'els-woocommerce' ) ); ?>
 					<?php self::checkbox_row( 'place_autocomplete', __( 'ELS place autocomplete', 'els-woocommerce' ), $s['place_autocomplete'], __( 'Enable Cyrillic/Latin place suggestions only when the checkout country is North Macedonia.', 'els-woocommerce' ) ); ?>
 				</table>
+
+				<h2><?php esc_html_e( 'Automatic order status from ELS', 'els-woocommerce' ); ?></h2>
+				<p><?php esc_html_e( 'Every 30 minutes (WP-Cron) the plugin checks ELS and moves orders forward. Orders never move backwards.', 'els-woocommerce' ); ?></p>
+				<table class="form-table" role="presentation">
+					<?php self::checkbox_row( 'sync_enabled', __( 'Sync statuses from ELS', 'els-woocommerce' ), $s['sync_enabled'], __( 'Update WooCommerce order status from the ELS shipment status.', 'els-woocommerce' ) ); ?>
+					<?php foreach ( array( 'shipped' => __( 'Picked up / in delivery', 'els-woocommerce' ), 'delivered' => __( 'Delivered', 'els-woocommerce' ), 'returned' => __( 'Returned / cancelled', 'els-woocommerce' ) ) as $target => $target_label ) : ?>
+						<tr><th scope="row"><label for="els-wc-status-<?php echo esc_attr( $target ); ?>"><?php echo esc_html( $target_label ); ?></label></th><td><select id="els-wc-status-<?php echo esc_attr( $target ); ?>" name="<?php echo esc_attr( self::OPTION_NAME ); ?>[status_<?php echo esc_attr( $target ); ?>]">
+							<option value=""><?php esc_html_e( '— do not change —', 'els-woocommerce' ); ?></option>
+							<?php foreach ( wc_get_order_statuses() as $status_key => $status_label ) : $status = preg_replace( '/^wc-/', '', $status_key ); ?>
+								<option value="<?php echo esc_attr( $status ); ?>" <?php selected( $s[ 'status_' . $target ], $status ); ?>><?php echo esc_html( $status_label ); ?></option>
+							<?php endforeach; ?>
+						</select></td></tr>
+					<?php endforeach; ?>
+					<tr><th scope="row"><label for="els-wc-status_map"><?php esc_html_e( 'ELS status code map (optional)', 'els-woocommerce' ); ?></label></th><td>
+						<textarea id="els-wc-status_map" name="<?php echo esc_attr( self::OPTION_NAME ); ?>[status_map]" rows="4" class="large-text code" spellcheck="false" placeholder="40=shipped&#10;60=delivered&#10;70=returned"><?php echo esc_textarea( $s['status_map'] ); ?></textarea>
+						<p class="description"><?php esc_html_e( 'One line per ELS status code: code=shipped|delivered|returned|ignore. Without a map the status is recognised from its text.', 'els-woocommerce' ); ?></p>
+					</td></tr>
+				</table>
+				<?php if ( isset( $_GET['els_sync'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+					<div class="notice notice-info inline"><p><?php echo esc_html( sprintf( __( 'ELS sync: checked %1$d, updated %2$d, unknown status %3$d, errors %4$d.', 'els-woocommerce' ), absint( $_GET['checked'] ?? 0 ), absint( $_GET['updated'] ?? 0 ), absint( $_GET['unknown'] ?? 0 ), absint( $_GET['errors'] ?? 0 ) ) ); // phpcs:ignore WordPress.Security.NonceVerification ?></p></div>
+				<?php endif; ?>
+				<p><a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=els_wc_sync_now' ), 'els_wc_sync_now' ) ); ?>"><?php esc_html_e( 'Sync statuses now (save settings first)', 'els-woocommerce' ); ?></a></p>
 
 				<h2><?php esc_html_e( 'Sender/company data', 'els-woocommerce' ); ?></h2>
 				<table class="form-table" role="presentation">

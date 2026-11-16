@@ -4,7 +4,7 @@ Tags: woocommerce, shipping, els, ecologistics, macedonia
 Requires at least: 6.2
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.4.1
+Stable tag: 1.5.0
 License: GPLv2 or later
 
 Configurable WooCommerce integration for creating ELS postal shipments.
@@ -37,6 +37,8 @@ Features:
 * HPOS compatibility.
 * Flexible `ELS header=source` mapping, including order meta and static values.
 * Optional WooCommerce technical logging without credentials or CSV contents.
+* Automatic order status sync from ELS every 30 minutes (WP-Cron): picked up / in delivery, delivered and returned shipments move the order to configurable statuses, never backwards.
+* “Refresh ELS shipment status” order action and “Sync statuses now” button.
 
 == Installation ==
 
@@ -70,3 +72,11 @@ Use `meta:your_order_meta_key` for custom order metadata and `static:any text` f
 ELS templates can have different mandatory columns. Always match the exported template from the ELS customer portal. Test with a non-production order before enabling automatic shipment creation.
 
 The current public Swagger lists `POST /users/login` and `POST /orders/bulk`. Both paths remain configurable in case ELS provides different endpoints for an account.
+
+== Changelog ==
+
+= 1.5.0 =
+* New: automatic order status synchronisation from ELS (`POST /orders/status`), with configurable target statuses and optional status-code map.
+
+= 1.4.1 =
+* Previous release.

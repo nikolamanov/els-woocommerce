@@ -78,6 +78,28 @@ final class ELS_WC_API_Client {
 		return is_wp_error( $result ) ? $result : $result['body'];
 	}
 
+	/** POST /orders/status — returns the response keyed by tracking number. */
+	public function get_statuses( array $numbers ) {
+		$token = $this->authenticate();
+		if ( is_wp_error( $token ) ) {
+			return $token;
+		}
+		$url     = $this->url( '/orders/status' );
+		$payload = array( 'trackingNumber' => array_values( $numbers ) );
+		$result  = $this->post_json( $url, $payload, array( 'Authorization' => 'Bearer ' . $token['access_token'] ) );
+
+		$error_data = is_wp_error( $result ) ? $result->get_error_data( 'els_http_error' ) : array();
+		if ( is_wp_error( $result ) && is_array( $error_data ) && 401 === (int) ( $error_data['status'] ?? 0 ) ) {
+			$token = $this->authenticate( true );
+			if ( is_wp_error( $token ) ) {
+				return $token;
+			}
+			$result = $this->post_json( $url, $payload, array( 'Authorization' => 'Bearer ' . $token['access_token'] ) );
+		}
+
+		return is_wp_error( $result ) ? $result : $result['body'];
+	}
+
 	private function post_json( $url, array $payload, array $headers ) {
 		$response = wp_remote_post(
 			$url,

@@ -4,7 +4,7 @@ Tags: woocommerce, shipping, els, ecologistics, macedonia
 Requires at least: 6.2
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.5.0
+Stable tag: 1.5.1
 License: GPLv2 or later
 
 Configurable WooCommerce integration for creating ELS postal shipments.
@@ -74,6 +74,10 @@ ELS templates can have different mandatory columns. Always match the exported te
 The current public Swagger lists `POST /users/login` and `POST /orders/bulk`. Both paths remain configurable in case ELS provides different endpoints for an account.
 
 == Changelog ==
+
+= 1.5.1 =
+* Fix: deleting the plugin no longer wipes the ELS settings (new opt-in "Delete settings on uninstall"); replacing the plugin by delete + upload kept resetting the list type and other settings.
+* ELS shipment errors now show which list type was sent, to make a template mismatch obvious.
 
 = 1.5.0 =
 * New: automatic order status synchronisation from ELS (`POST /orders/status`), with configurable target statuses and optional status-code map.

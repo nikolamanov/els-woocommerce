@@ -3,7 +3,7 @@
  * Plugin Name: ELS for WooCommerce
  * Plugin URI:  https://nikolamanov.com
  * Description: Creates ELS postal shipments from WooCommerce orders through the configurable ELS API.
- * Version:     1.5.0
+ * Version:     1.5.1
  * Author:      Nikola Manov
  * Author URI:  https://nikolamanov.com
  * Text Domain: els-woocommerce
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'ELS_WC_VERSION', '1.5.0' );
+define( 'ELS_WC_VERSION', '1.5.1' );
 define( 'ELS_WC_FILE', __FILE__ );
 define( 'ELS_WC_PATH', plugin_dir_path( __FILE__ ) );
 

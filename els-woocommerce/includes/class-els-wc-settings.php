@@ -38,6 +38,7 @@ final class ELS_WC_Settings {
 			'tracking_meta_key'   => '_tracking_number',
 			'tracking_page_base_url' => 'https://track.els.mk/mk/',
 			'customer_tracking_email' => 'yes',
+			'delete_data'         => 'no',
 			'sync_enabled'        => 'yes',
 			'status_map'          => '',
 			'status_shipped'      => '',
@@ -121,6 +122,7 @@ final class ELS_WC_Settings {
 		$output['tracking_page_base_url'] = trailingslashit( esc_url_raw( $input['tracking_page_base_url'] ?? 'https://track.els.mk/mk/' ) );
 		$output['customer_tracking_email'] = isset( $input['customer_tracking_email'] ) ? 'yes' : 'no';
 
+		$output['delete_data']  = isset( $input['delete_data'] ) ? 'yes' : 'no';
 		$output['sync_enabled'] = isset( $input['sync_enabled'] ) ? 'yes' : 'no';
 		$output['status_map']   = sanitize_textarea_field( $input['status_map'] ?? '' );
 		foreach ( array( 'shipped', 'delivered', 'returned' ) as $target ) {
@@ -243,6 +245,7 @@ final class ELS_WC_Settings {
 
 				<h2><?php esc_html_e( 'Diagnostics', 'els-woocommerce' ); ?></h2>
 				<table class="form-table" role="presentation">
+					<?php self::checkbox_row( 'delete_data', __( 'Delete settings on uninstall', 'els-woocommerce' ), $s['delete_data'], __( 'Off by default: deleting the plugin keeps your ELS settings so a reinstall or update does not lose them.', 'els-woocommerce' ) ); ?>
 					<?php self::checkbox_row( 'debug', __( 'Enable WooCommerce logging', 'els-woocommerce' ), $s['debug'], __( 'Logs technical status only; credentials and order CSV data are not logged.', 'els-woocommerce' ) ); ?>
 				</table>
 				<?php submit_button(); ?>

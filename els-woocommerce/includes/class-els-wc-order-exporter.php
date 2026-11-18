@@ -54,7 +54,15 @@ final class ELS_WC_Order_Exporter {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			return $this->fail( $order, $response->get_error_message() );
+			return $this->fail(
+				$order,
+				sprintf(
+					/* translators: 1: ELS error, 2: configured list type */
+					__( '%1$s [ELS list type sent: "%2$s" — it must match the list template assigned to this ELS user in the ELS portal]', 'els-woocommerce' ),
+					$response->get_error_message(),
+					$settings['listtype']
+				)
+			);
 		}
 
 		$order->update_meta_data( '_els_last_response', wp_json_encode( $response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ) );

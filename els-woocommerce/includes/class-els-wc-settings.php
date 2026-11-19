@@ -22,6 +22,8 @@ final class ELS_WC_Settings {
 			'username'            => '',
 			'password'            => '',
 			'listtype'            => 'ЛИСТА ПАКЕТ-ПИ',
+			'shipping_payer'      => 'sender',
+			'recipient_listtype'  => '',
 			'delimiter'           => 'comma',
 			'import_all_or_none'  => '1',
 			'send_statuses'       => array( 'processing', 'completed' ),
@@ -108,6 +110,8 @@ final class ELS_WC_Settings {
 		$output['client_id']          = sanitize_text_field( $input['client_id'] ?? '' );
 		$output['username']           = sanitize_text_field( $input['username'] ?? '' );
 		$output['listtype']           = sanitize_text_field( $input['listtype'] ?? '' );
+		$output['shipping_payer']     = 'recipient' === ( $input['shipping_payer'] ?? '' ) ? 'recipient' : 'sender';
+		$output['recipient_listtype'] = sanitize_text_field( $input['recipient_listtype'] ?? '' );
 		$output['import_all_or_none'] = isset( $input['import_all_or_none'] ) ? '1' : '0';
 		$output['sender_name']        = sanitize_text_field( $input['sender_name'] ?? '' );
 		$output['sender_address']     = sanitize_text_field( $input['sender_address'] ?? '' );
@@ -185,7 +189,18 @@ final class ELS_WC_Settings {
 
 				<h2><?php esc_html_e( 'Shipment import', 'els-woocommerce' ); ?></h2>
 				<table class="form-table" role="presentation">
-					<?php self::text_row( 'listtype', __( 'ELS list type', 'els-woocommerce' ), $s['listtype'], 'text', '', '', __( 'Exact template name from “Типови на листи” in the ELS customer portal.', 'els-woocommerce' ) ); ?>
+					<tr>
+						<th scope="row"><label for="els-wc-shipping-payer"><?php esc_html_e( 'Who pays ELS shipping?', 'els-woocommerce' ); ?></label></th>
+						<td>
+							<select id="els-wc-shipping-payer" name="<?php echo esc_attr( self::OPTION_NAME ); ?>[shipping_payer]">
+								<option value="sender" <?php selected( $s['shipping_payer'], 'sender' ); ?>><?php esc_html_e( 'Sender', 'els-woocommerce' ); ?></option>
+								<option value="recipient" <?php selected( $s['shipping_payer'], 'recipient' ); ?>><?php esc_html_e( 'Customer (recipient)', 'els-woocommerce' ); ?></option>
+							</select>
+							<p class="description"><?php esc_html_e( 'When the customer pays ELS, the WooCommerce shipping charge and its tax are deducted from cash on delivery. ELS charges its own shipping rate. This setting affects shipments sent to ELS.', 'els-woocommerce' ); ?></p>
+						</td>
+					</tr>
+					<?php self::text_row( 'listtype', __( 'ELS list type (sender pays)', 'els-woocommerce' ), $s['listtype'], 'text', '', '', __( 'Exact template name from “Типови на листи” in the ELS customer portal.', 'els-woocommerce' ) ); ?>
+					<?php self::text_row( 'recipient_listtype', __( 'ELS list type (customer pays)', 'els-woocommerce' ), $s['recipient_listtype'], 'text', '', '', __( 'Enter the exact name of the separate ELS template that charges shipping to the recipient. Use a template that matches the CSV columns below and map its cash-on-delivery column to cod_amount.', 'els-woocommerce' ) ); ?>
 					<tr><th scope="row"><label for="els-wc-delimiter"><?php esc_html_e( 'CSV delimiter', 'els-woocommerce' ); ?></label></th><td><select id="els-wc-delimiter" name="<?php echo esc_attr( self::OPTION_NAME ); ?>[delimiter]">
 						<?php foreach ( array( 'tab' => __( 'Tab', 'els-woocommerce' ), 'comma' => __( 'Comma', 'els-woocommerce' ), 'semicolon' => __( 'Semicolon', 'els-woocommerce' ), 'pipe' => __( 'Pipe', 'els-woocommerce' ) ) as $value => $label ) : ?>
 							<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $s['delimiter'], $value ); ?>><?php echo esc_html( $label ); ?></option>

@@ -18,13 +18,21 @@ final class ELS_WC_Order_Exporter {
 			return new WP_Error( 'els_already_sent', __( 'This order already has an ELS shipment and was not sent again.', 'els-woocommerce' ) );
 		}
 
-		if ( empty( $settings['listtype'] ) ) {
+		$recipient_pays = 'recipient' === $settings['shipping_payer'];
+		$listtype       = trim( $recipient_pays ? $settings['recipient_listtype'] : $settings['listtype'] );
+		if ( $recipient_pays && ( '' === $listtype || $listtype === trim( $settings['listtype'] ) ) ) {
+			return $this->fail( $order, __( 'Set a separate ELS list type that charges shipping to the customer.', 'els-woocommerce' ) );
+		}
+		if ( '' === $listtype ) {
 			return $this->fail( $order, __( 'ELS list type is not configured.', 'els-woocommerce' ) );
 		}
 
 		$mapping = $this->parse_mapping( $settings['column_mapping'] );
 		if ( empty( $mapping ) ) {
 			return $this->fail( $order, __( 'ELS column mapping is empty or invalid.', 'els-woocommerce' ) );
+		}
+		if ( $recipient_pays && ! in_array( 'cod_amount', $mapping, true ) ) {
+			return $this->fail( $order, __( 'Map the ELS cash-on-delivery column to cod_amount when the customer pays shipping.', 'els-woocommerce' ) );
 		}
 
 		$headers = array_keys( $mapping );
@@ -46,7 +54,7 @@ final class ELS_WC_Order_Exporter {
 		$client   = new ELS_WC_API_Client( $settings );
 		$response = $client->create_bulk_order(
 			array(
-				'listtype'           => $settings['listtype'],
+				'listtype'           => $listtype,
 				'csv'                => $csv,
 				'delimiter'          => $delimiter,
 				'import_all_or_none' => (int) $settings['import_all_or_none'],
@@ -60,7 +68,7 @@ final class ELS_WC_Order_Exporter {
 					/* translators: 1: ELS error, 2: configured list type */
 					__( '%1$s [ELS list type sent: "%2$s" — it must match the list template assigned to this ELS user in the ELS portal]', 'els-woocommerce' ),
 					$response->get_error_message(),
-					$settings['listtype']
+					$listtype
 				)
 			);
 		}
@@ -187,7 +195,17 @@ final class ELS_WC_Order_Exporter {
 
 	private function cod_amount( WC_Order $order, array $settings ) {
 		$methods = array_filter( array_map( 'trim', explode( ',', strtolower( $settings['cod_methods'] ) ) ) );
-		return in_array( strtolower( $order->get_payment_method() ), $methods, true ) ? wc_format_decimal( $order->get_total(), 2 ) : '0';
+		if ( ! in_array( strtolower( $order->get_payment_method() ), $methods, true ) ) {
+			return '0';
+		}
+
+		$total = $order->get_total();
+		if ( 'recipient' === $settings['shipping_payer'] ) {
+			$shipping = (float) $order->get_shipping_total() + (float) $order->get_shipping_tax();
+			$total    = max( 0, (float) $total - $shipping );
+		}
+
+		return wc_format_decimal( $total, 2 );
 	}
 
 	private function weight( WC_Order $order, array $settings ) {

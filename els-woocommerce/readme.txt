@@ -43,13 +43,19 @@ Features:
 
 == Installation ==
 
+Request API access and an assigned import template directly from ELS at info@els.mk or iskra@els.mk. Ask for the exact list type name and its CSV example. Request `ЛИСТА ПАКЕТ-ПИ` if the sender pays ELS shipping, `ЛИСТА ПАКЕТ-ПП` if the recipient pays ELS shipping, or both if you use both arrangements.
+
+Get the latest installable ZIP at https://github.com/nikolamanov/els-woocommerce/releases/latest/download/els-woocommerce.zip
+
 1. Upload the `els-woocommerce` directory to `/wp-content/plugins/`, or upload its ZIP in Plugins > Add New.
 2. Activate “ELS for WooCommerce”.
 3. Open WooCommerce > ELS Integration.
 4. Enter the ELS API account data and the exact list type supplied by ELS.
-5. Copy the exact column headers and order from the exported ELS template into “ELS column mapping”.
+5. Choose who pays ELS shipping under Shipment import. `ЛИСТА ПАКЕТ-ПП` uses its built-in CSV format with the customer-paid delimiter set to “Automatic” and the customer-paid mapping left blank. For a custom template, match the exported header names, column order and delimiter.
 6. Save and run “Save first, then test connection”.
 7. Enable the integration after the test succeeds.
+
+For help installing or configuring the plugin, call 074 222 074 or email info@nikolamanov.com.
 
 == Column mapping ==
 

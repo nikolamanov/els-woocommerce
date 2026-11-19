@@ -27,7 +27,15 @@ final class ELS_WC_Order_Exporter {
 			return $this->fail( $order, __( 'ELS list type is not configured.', 'els-woocommerce' ) );
 		}
 
-		$mapping = $this->parse_mapping( $settings['column_mapping'] );
+		$mapping_text = $settings['column_mapping'];
+		$delimiter    = $settings['delimiter'];
+		if ( $recipient_pays ) {
+			$is_package_template = ELS_WC_Settings::RECIPIENT_PACKAGE_LISTTYPE === $listtype;
+			$mapping_text = $settings['recipient_column_mapping'] ?: ( $is_package_template ? ELS_WC_Settings::recipient_package_mapping() : $mapping_text );
+			$delimiter    = $settings['recipient_delimiter'] ?: ( $is_package_template ? 'tab' : $delimiter );
+		}
+
+		$mapping = $this->parse_mapping( $mapping_text );
 		if ( empty( $mapping ) ) {
 			return $this->fail( $order, __( 'ELS column mapping is empty or invalid.', 'els-woocommerce' ) );
 		}
@@ -41,7 +49,7 @@ final class ELS_WC_Order_Exporter {
 			$row[] = $this->value( $source, $order, $settings );
 		}
 
-		$delimiter = $this->delimiter( $settings['delimiter'] );
+		$delimiter = $this->delimiter( $delimiter );
 		$csv       = $this->make_csv( $headers, $row, $delimiter );
 		if ( is_wp_error( $csv ) ) {
 			return $this->fail( $order, $csv->get_error_message() );

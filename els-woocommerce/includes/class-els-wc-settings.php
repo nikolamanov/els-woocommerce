@@ -4,6 +4,7 @@ defined( 'ABSPATH' ) || exit;
 
 final class ELS_WC_Settings {
 	const OPTION_NAME = 'els_wc_settings';
+	const RECIPIENT_PACKAGE_LISTTYPE = 'ЛИСТА ПАКЕТ-ПП';
 
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'add_menu' ) );
@@ -24,6 +25,8 @@ final class ELS_WC_Settings {
 			'listtype'            => 'ЛИСТА ПАКЕТ-ПИ',
 			'shipping_payer'      => 'sender',
 			'recipient_listtype'  => '',
+			'recipient_delimiter' => '',
+			'recipient_column_mapping' => '',
 			'delimiter'           => 'comma',
 			'import_all_or_none'  => '1',
 			'send_statuses'       => array( 'processing', 'completed' ),
@@ -74,6 +77,24 @@ final class ELS_WC_Settings {
 		return array_key_exists( $key, $settings ) ? $settings[ $key ] : $default;
 	}
 
+	public static function recipient_package_mapping() {
+		return implode(
+			"\n",
+			array(
+				'име на примач=recipient_name',
+				'адреса на примач=recipient_address',
+				'телефон на примач=recipient_phone',
+				'место smart detect=recipient_place',
+				'тежина=weight',
+				'откуп=cod_amount',
+				'референца=reference_number',
+				'коментар=note',
+				'количина=static:1',
+				'заменска пратка=static:0',
+			)
+		);
+	}
+
 	public static function add_menu() {
 		add_submenu_page(
 			'woocommerce',
@@ -120,6 +141,7 @@ final class ELS_WC_Settings {
 		$output['reference_prefix']   = sanitize_text_field( $input['reference_prefix'] ?? '' );
 		$output['cod_methods']        = sanitize_text_field( $input['cod_methods'] ?? 'cod' );
 		$output['column_mapping']     = sanitize_textarea_field( $input['column_mapping'] ?? $defaults['column_mapping'] );
+		$output['recipient_column_mapping'] = sanitize_textarea_field( $input['recipient_column_mapping'] ?? '' );
 		$output['debug']              = isset( $input['debug'] ) ? 'yes' : 'no';
 		$output['place_autocomplete'] = isset( $input['place_autocomplete'] ) ? 'yes' : 'no';
 		$output['tracking_meta_key']  = sanitize_key( $input['tracking_meta_key'] ?? '_tracking_number' );
@@ -133,8 +155,10 @@ final class ELS_WC_Settings {
 			$output[ 'status_' . $target ] = sanitize_key( preg_replace( '/^wc-/', '', (string) ( $input[ 'status_' . $target ] ?? $defaults[ 'status_' . $target ] ) ) );
 		}
 
-		$delimiter = sanitize_key( $input['delimiter'] ?? 'comma' );
-		$output['delimiter'] = in_array( $delimiter, array( 'tab', 'comma', 'semicolon', 'pipe' ), true ) ? $delimiter : 'comma';
+		foreach ( array( 'delimiter', 'recipient_delimiter' ) as $key ) {
+			$delimiter = sanitize_key( $input[ $key ] ?? $defaults[ $key ] );
+			$output[ $key ] = in_array( $delimiter, array( 'tab', 'comma', 'semicolon', 'pipe' ), true ) ? $delimiter : $defaults[ $key ];
+		}
 
 		$statuses = isset( $input['send_statuses'] ) && is_array( $input['send_statuses'] ) ? $input['send_statuses'] : array();
 		$output['send_statuses'] = array_values( array_unique( array_map( 'sanitize_key', $statuses ) ) );
@@ -200,12 +224,18 @@ final class ELS_WC_Settings {
 						</td>
 					</tr>
 					<?php self::text_row( 'listtype', __( 'ELS list type (sender pays)', 'els-woocommerce' ), $s['listtype'], 'text', '', '', __( 'Exact template name from “Типови на листи” in the ELS customer portal.', 'els-woocommerce' ) ); ?>
-					<?php self::text_row( 'recipient_listtype', __( 'ELS list type (customer pays)', 'els-woocommerce' ), $s['recipient_listtype'], 'text', '', '', __( 'Enter the exact name of the separate ELS template that charges shipping to the recipient. Use a template that matches the CSV columns below and map its cash-on-delivery column to cod_amount.', 'els-woocommerce' ) ); ?>
-					<tr><th scope="row"><label for="els-wc-delimiter"><?php esc_html_e( 'CSV delimiter', 'els-woocommerce' ); ?></label></th><td><select id="els-wc-delimiter" name="<?php echo esc_attr( self::OPTION_NAME ); ?>[delimiter]">
-						<?php foreach ( array( 'tab' => __( 'Tab', 'els-woocommerce' ), 'comma' => __( 'Comma', 'els-woocommerce' ), 'semicolon' => __( 'Semicolon', 'els-woocommerce' ), 'pipe' => __( 'Pipe', 'els-woocommerce' ) ) as $value => $label ) : ?>
-							<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $s['delimiter'], $value ); ?>><?php echo esc_html( $label ); ?></option>
-						<?php endforeach; ?>
-					</select></td></tr>
+					<?php self::text_row( 'recipient_listtype', __( 'ELS list type (customer pays)', 'els-woocommerce' ), $s['recipient_listtype'], 'text', '', '', __( 'Exact name of the separate ELS template that charges shipping to the recipient. ЛИСТА ПАКЕТ-ПП has a built-in CSV format.', 'els-woocommerce' ) ); ?>
+					<?php
+					$delimiters = array( 'tab' => __( 'Tab', 'els-woocommerce' ), 'comma' => __( 'Comma', 'els-woocommerce' ), 'semicolon' => __( 'Semicolon', 'els-woocommerce' ), 'pipe' => __( 'Pipe', 'els-woocommerce' ) );
+					foreach ( array( 'delimiter' => __( 'Default CSV delimiter', 'els-woocommerce' ), 'recipient_delimiter' => __( 'CSV delimiter (customer pays)', 'els-woocommerce' ) ) as $key => $title ) :
+						$options = 'recipient_delimiter' === $key ? array( '' => __( 'Automatic (Tab for ЛИСТА ПАКЕТ-ПП)', 'els-woocommerce' ) ) + $delimiters : $delimiters;
+						?>
+						<tr><th scope="row"><label for="els-wc-<?php echo esc_attr( $key ); ?>"><?php echo esc_html( $title ); ?></label></th><td><select id="els-wc-<?php echo esc_attr( $key ); ?>" name="<?php echo esc_attr( self::OPTION_NAME . '[' . $key . ']' ); ?>">
+							<?php foreach ( $options as $value => $label ) : ?>
+								<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $s[ $key ], $value ); ?>><?php echo esc_html( $label ); ?></option>
+							<?php endforeach; ?>
+						</select></td></tr>
+					<?php endforeach; ?>
 					<?php self::checkbox_row( 'import_all_or_none', __( 'Import all or none', 'els-woocommerce' ), $s['import_all_or_none'], __( 'For a single-order request this should normally remain enabled.', 'els-woocommerce' ) ); ?>
 					<tr><th scope="row"><?php esc_html_e( 'Automatic order statuses', 'els-woocommerce' ); ?></th><td>
 						<?php foreach ( wc_get_order_statuses() as $status_key => $status_label ) : $status = preg_replace( '/^wc-/', '', $status_key ); ?>
@@ -254,6 +284,9 @@ final class ELS_WC_Settings {
 				<h2><?php esc_html_e( 'ELS column mapping', 'els-woocommerce' ); ?></h2>
 				<p><?php esc_html_e( 'One line per column: exact ELS header=source. The order of these lines becomes the CSV column order.', 'els-woocommerce' ); ?></p>
 				<textarea name="<?php echo esc_attr( self::OPTION_NAME ); ?>[column_mapping]" rows="12" class="large-text code" spellcheck="false"><?php echo esc_textarea( $s['column_mapping'] ); ?></textarea>
+				<p><label for="els-wc-recipient-mapping"><strong><?php esc_html_e( 'Customer-paid column mapping (optional)', 'els-woocommerce' ); ?></strong></label></p>
+				<p id="els-wc-recipient-mapping-help" class="description"><?php esc_html_e( 'Leave empty to use the built-in mapping for ЛИСТА ПАКЕТ-ПП or the default mapping above for other templates. Map the cash-on-delivery column to cod_amount.', 'els-woocommerce' ); ?></p>
+				<textarea id="els-wc-recipient-mapping" aria-describedby="els-wc-recipient-mapping-help" name="<?php echo esc_attr( self::OPTION_NAME ); ?>[recipient_column_mapping]" rows="5" class="large-text code" spellcheck="false"><?php echo esc_textarea( $s['recipient_column_mapping'] ); ?></textarea>
 				<details style="margin-top:10px"><summary><?php esc_html_e( 'Available mapping sources', 'els-woocommerce' ); ?></summary>
 					<p><code>order_id</code>, <code>order_number</code>, <code>reference_number</code>, <code>recipient_name</code>, <code>recipient_first_name</code>, <code>recipient_last_name</code>, <code>recipient_company</code>, <code>recipient_address</code>, <code>recipient_address_1</code>, <code>recipient_address_2</code>, <code>recipient_place</code>, <code>recipient_state</code>, <code>recipient_postcode</code>, <code>recipient_country</code>, <code>recipient_phone</code>, <code>recipient_email</code>, <code>cod_amount</code>, <code>order_total</code>, <code>weight</code>, <code>note</code>, <code>payment_method</code>, <code>payment_method_title</code>, <code>items</code>, <code>sender_name</code>, <code>sender_address</code>, <code>sender_place</code>, <code>sender_phone</code>, <code>store_name</code>, <code>meta:custom_key</code>, <code>static:any text</code>.</p>
 				</details>

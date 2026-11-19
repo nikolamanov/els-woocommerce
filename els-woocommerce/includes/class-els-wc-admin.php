@@ -124,10 +124,7 @@ final class ELS_WC_Admin {
 			wp_die( esc_html__( 'WooCommerce order was not found.', 'els-woocommerce' ), '', array( 'response' => 404 ) );
 		}
 
-		$redirect = wp_get_referer();
-		if ( ! $redirect ) {
-			$redirect = admin_url( 'admin.php?page=wc-orders&action=edit&id=' . $order_id );
-		}
+		$redirect = $order->get_edit_order_url();
 
 		$place = isset( $_POST['els_place'] ) ? sanitize_text_field( wp_unslash( $_POST['els_place'] ) ) : '';
 		if ( ! ELS_WC_Places::is_valid( $place ) ) {
@@ -272,19 +269,27 @@ final class ELS_WC_Admin {
 			if ( ! $current_place ) {
 				$current_place = $order->get_shipping_city() ?: $order->get_billing_city();
 			}
-			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
-			echo '<input type="hidden" name="action" value="els_wc_send_order">';
-			echo '<input type="hidden" name="order_id" value="' . esc_attr( $order->get_id() ) . '">';
-			wp_nonce_field( 'els_wc_send_order_' . $order->get_id() );
+			$order_id = $order->get_id();
+			$form_id  = 'els-wc-send-order-' . $order_id;
+			// The meta box may be inside the WooCommerce order form. Submit through a separate form.
+			add_action(
+				'admin_footer',
+				static function () use ( $form_id, $order_id ) {
+					echo '<form id="' . esc_attr( $form_id ) . '" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" hidden>';
+					echo '<input type="hidden" name="action" value="els_wc_send_order">';
+					echo '<input type="hidden" name="order_id" value="' . esc_attr( $order_id ) . '">';
+					wp_nonce_field( 'els_wc_send_order_' . $order_id, '_wpnonce', false );
+					echo '</form>';
+				}
+			);
 			echo '<p><label for="els-wc-order-place"><strong>' . esc_html__( 'Место за достава', 'els-woocommerce' ) . '</strong></label></p>';
-			echo '<select id="els-wc-order-place" name="els_place" class="els-wc-place-select" data-placeholder="' . esc_attr__( 'Пребарајте и изберете место…', 'els-woocommerce' ) . '" required style="width:100%">';
+			echo '<select id="els-wc-order-place" name="els_place" form="' . esc_attr( $form_id ) . '" class="els-wc-place-select" data-placeholder="' . esc_attr__( 'Пребарајте и изберете место…', 'els-woocommerce' ) . '" required style="width:100%">';
 			foreach ( ELS_WC_Places::options() as $value => $option_label ) {
 				echo '<option value="' . esc_attr( $value ) . '" ' . selected( $current_place, $value, false ) . '>' . esc_html( $option_label ) . '</option>';
 			}
 			echo '</select>';
 			echo '<p class="description">' . esc_html__( 'The exact selected ELS value will be sent as the shipment place.', 'els-woocommerce' ) . '</p>';
-			echo '<p><button type="submit" class="button button-primary" style="width:100%" onclick="return confirm(\'' . esc_js( __( 'Create this shipment in ELS now?', 'els-woocommerce' ) ) . '\');">' . esc_html( $label ) . '</button></p>';
-			echo '</form>';
+			echo '<p><button type="submit" form="' . esc_attr( $form_id ) . '" class="button button-primary" style="width:100%" onclick="return confirm(\'' . esc_js( __( 'Create this shipment in ELS now?', 'els-woocommerce' ) ) . '\');">' . esc_html( $label ) . '</button></p>';
 		} else {
 			echo '<p><em>' . esc_html__( 'This order already has an ELS shipment, so it cannot be sent again.', 'els-woocommerce' ) . '</em></p>';
 		}

@@ -4,7 +4,7 @@ Tags: woocommerce, shipping, els, ecologistics, macedonia
 Requires at least: 6.2
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.6.1
+Stable tag: 1.6.2
 License: GPLv2 or later
 
 Configurable WooCommerce integration for creating ELS postal shipments.
@@ -75,6 +75,9 @@ ELS templates can have different mandatory columns. Always match the exported te
 The current public Swagger lists `POST /users/login` and `POST /orders/bulk`. Both paths remain configurable in case ELS provides different endpoints for an account.
 
 == Changelog ==
+
+= 1.6.2 =
+* Open ELS delivery notes and labels from the WooCommerce order using the configured ELS API login. This also works with document links saved on existing orders.
 
 = 1.6.1 =
 * Use the ELS export's column order and tab delimiter for customer-paid shipments with `ЛИСТА ПАКЕТ-ПП`. Other customer-paid templates can have their own CSV settings.

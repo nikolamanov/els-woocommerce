@@ -3,6 +3,11 @@
 defined( 'ABSPATH' ) || exit;
 
 final class ELS_WC_Admin {
+	private const DOCUMENT_META = array(
+		'delivery-note' => '_els_delivery_note_url',
+		'label'         => '_els_label_url',
+	);
+
 	private $exporter;
 
 	public function __construct( ELS_WC_Order_Exporter $exporter ) {
@@ -20,6 +25,7 @@ final class ELS_WC_Admin {
 		add_action( 'admin_notices', array( $this, 'notices' ) );
 		add_action( 'add_meta_boxes', array( $this, 'add_meta_box' ) );
 		add_action( 'admin_post_els_wc_send_order', array( $this, 'handle_send_button' ) );
+		add_action( 'admin_post_els_wc_print_document', array( $this, 'handle_print_document' ) );
 		add_action( 'woocommerce_admin_order_data_after_order_details', array( $this, 'backfill_tracking_meta' ), 1, 1 );
 		add_action( 'woocommerce_admin_order_data_after_order_details', array( $this, 'render_tracking_fields' ), 20, 1 );
 		add_action( 'woocommerce_process_shop_order_meta', array( $this, 'save_tracking_fields' ), 20, 1 );
@@ -160,6 +166,35 @@ final class ELS_WC_Admin {
 		exit;
 	}
 
+	public function handle_print_document() {
+		if ( ! current_user_can( 'manage_woocommerce' ) || ! current_user_can( 'edit_shop_orders' ) ) {
+			wp_die( esc_html__( 'You are not allowed to print ELS shipment documents.', 'els-woocommerce' ), '', array( 'response' => 403 ) );
+		}
+
+		$order_id = absint( wp_unslash( $_GET['order_id'] ?? 0 ) );
+		$document = sanitize_key( wp_unslash( $_GET['document'] ?? '' ) );
+		check_admin_referer( 'els_wc_print_document_' . $order_id . '_' . $document );
+		$order = $order_id ? wc_get_order( $order_id ) : false;
+		$url   = $order && isset( self::DOCUMENT_META[ $document ] ) ? $order->get_meta( self::DOCUMENT_META[ $document ] ) : '';
+		if ( ! is_string( $url ) || '' === $url ) {
+			wp_die( esc_html__( 'This WooCommerce order has no saved ELS link for the requested document.', 'els-woocommerce' ), '', array( 'response' => 404 ) );
+		}
+
+		$client = new ELS_WC_API_Client( ELS_WC_Settings::get_all() );
+		$pdf    = $client->get_shipment_document( $url );
+		if ( is_wp_error( $pdf ) ) {
+			wp_die( esc_html( $pdf->get_error_message() ), '', array( 'response' => 502 ) );
+		}
+
+		nocache_headers();
+		header( 'Cache-Control: private, no-store, max-age=0' );
+		header( 'Content-Type: application/pdf' );
+		header( 'X-Content-Type-Options: nosniff' );
+		header( 'Content-Disposition: inline; filename="els-' . $document . '-' . $order_id . '.pdf"' );
+		echo $pdf; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Binary PDF body.
+		exit;
+	}
+
 	public function add_meta_box() {
 		$screens = array( 'shop_order' );
 		if ( function_exists( 'wc_get_page_screen_id' ) ) {
@@ -246,9 +281,26 @@ final class ELS_WC_Admin {
 		$this->sync_tracking_compatibility_meta( $order, $tracking ?: $serial );
 		$links    = array(
 			__( 'Track shipment', 'els-woocommerce' ) => $order->get_meta( '_els_tracking_url' ),
-			__( 'Delivery note', 'els-woocommerce' )  => $order->get_meta( '_els_delivery_note_url' ),
-			__( 'Label', 'els-woocommerce' )          => $order->get_meta( '_els_label_url' ),
 		);
+		if ( current_user_can( 'manage_woocommerce' ) && current_user_can( 'edit_shop_orders' ) ) {
+			$documents = array( 'delivery-note' => __( 'Delivery note', 'els-woocommerce' ), 'label' => __( 'Label', 'els-woocommerce' ) );
+			foreach ( $documents as $document => $label ) {
+				if ( ! $order->get_meta( self::DOCUMENT_META[ $document ] ) ) {
+					continue;
+				}
+				$links[ $label ] = wp_nonce_url(
+					add_query_arg(
+						array(
+							'action'   => 'els_wc_print_document',
+							'order_id' => $order->get_id(),
+							'document' => $document,
+						),
+						admin_url( 'admin-post.php' )
+					),
+					'els_wc_print_document_' . $order->get_id() . '_' . $document
+				);
+			}
+		}
 		echo '<p><strong>' . esc_html__( 'Status:', 'els-woocommerce' ) . '</strong> ' . esc_html( $status ) . '</p>';
 		if ( $tracking ) {
 			echo '<p><strong>' . esc_html__( 'Tracking:', 'els-woocommerce' ) . '</strong> ' . esc_html( $tracking ) . '</p>';

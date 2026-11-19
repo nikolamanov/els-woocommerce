@@ -100,6 +100,55 @@ final class ELS_WC_API_Client {
 		return is_wp_error( $result ) ? $result : $result['body'];
 	}
 
+	public function get_shipment_document( $url ) {
+		$api   = wp_parse_url( $this->settings['api_base_url'] );
+		$print = wp_parse_url( $url );
+		if ( 'https' !== ( $api['scheme'] ?? '' ) || 'https' !== ( $print['scheme'] ?? '' )
+			|| empty( $api['host'] ) || 0 !== strcasecmp( $api['host'], $print['host'] ?? '' )
+			|| ( $api['port'] ?? 443 ) !== ( $print['port'] ?? 443 )
+			|| isset( $print['user'] ) || isset( $print['pass'] )
+			|| ! preg_match( '~^/(?:orders|consignments)/print/[a-z0-9-]+$~D', $print['path'] ?? '' ) ) {
+			return new WP_Error( 'els_document_url', __( 'The saved link is not a print URL on the configured ELS API.', 'els-woocommerce' ) );
+		}
+
+		$max_bytes = 10 * 1024 * 1024;
+		$args      = array(
+			'timeout'             => min( 120, max( 5, absint( $this->settings['timeout'] ?? 30 ) ) ),
+			'redirection'         => 0,
+			'limit_response_size' => $max_bytes + 1,
+			'headers'             => array( 'Accept' => 'application/pdf' ),
+		);
+		for ( $attempt = 0; $attempt < 2; ++$attempt ) {
+			$token = $this->authenticate( 0 < $attempt );
+			if ( is_wp_error( $token ) ) {
+				return $token;
+			}
+			$args['headers']['Authorization'] = 'Bearer ' . $token['access_token'];
+			$response = wp_safe_remote_get( $url, $args );
+			if ( is_wp_error( $response ) ) {
+				return new WP_Error( 'els_document_request', __( 'Could not reach ELS to download the document.', 'els-woocommerce' ) );
+			}
+			$status = (int) wp_remote_retrieve_response_code( $response );
+			if ( 401 !== $status ) {
+				break;
+			}
+		}
+
+		if ( 401 === $status || 403 === $status ) {
+			return new WP_Error( 'els_document_unauthorized', __( 'ELS refused access to this document. Check whether the configured ELS account can print it.', 'els-woocommerce' ) );
+		}
+		if ( 200 !== $status ) {
+			return new WP_Error( 'els_document_http', sprintf( __( 'ELS could not return the document (HTTP %d).', 'els-woocommerce' ), $status ) );
+		}
+
+		$pdf = wp_remote_retrieve_body( $response );
+		if ( strlen( $pdf ) > $max_bytes || 0 !== strpos( $pdf, '%PDF-' ) ) {
+			return new WP_Error( 'els_document_format', __( 'ELS did not return a PDF document of 10 MB or smaller.', 'els-woocommerce' ) );
+		}
+
+		return $pdf;
+	}
+
 	private function post_json( $url, array $payload, array $headers ) {
 		$response = wp_remote_post(
 			$url,
